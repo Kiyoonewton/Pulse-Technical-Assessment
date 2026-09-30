@@ -20,6 +20,10 @@
   the server left both participants marked busy. Added `"end"` to
   busy-state cleanup. Verified reconnection and messaging without
   refreshing either window.
+- Each poll refreshed every participant's heartbeat, preventing stale
+  users from expiring while anyone remained online. Scoped heartbeat
+  updates to the caller. Verified that a participant taken offline
+  disappears from the other participant's map after the expiry period.
 
 ## Phase 2 — Make it good
 
