@@ -2,6 +2,11 @@ import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 import { prisma } from "@/lib/prisma";
 
+// Requests allowed per one-minute window.
+export const JOIN_RATE_LIMIT = 20; // per client address
+export const SIGNAL_RATE_LIMIT = 180; // per session
+export const CONNECTION_REQUEST_RATE_LIMIT = 10; // per session
+
 type RateLimitRow = {
   count: number;
   retryAfter: number;

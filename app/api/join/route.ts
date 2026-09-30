@@ -7,6 +7,7 @@ import { readJsonObject } from "@/lib/request-body";
 import {
   cleanExpiredRateLimits,
   enforceRateLimit,
+  JOIN_RATE_LIMIT,
   joinRateLimitSubject,
 } from "@/lib/rate-limit";
 import { DEFAULT_INTENTION, isIntention } from "@/lib/intentions";
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const limited = await enforceRateLimit("join", subject, 20);
+  const limited = await enforceRateLimit("join", subject, JOIN_RATE_LIMIT);
   if (limited) return limited;
 
   await cleanExpiredRateLimits();

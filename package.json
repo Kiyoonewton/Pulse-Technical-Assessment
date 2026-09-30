@@ -2,12 +2,19 @@
   "name": "pulse",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node tests/support/require-tests.mjs \"tests/unit/**/*.test.ts\" && node --import ./tests/support/register.mjs --test \"tests/unit/**/*.test.ts\"",
+    "test:db:prepare": "node tests/support/prepare-test-db.mjs",
+    "test:integration": "npm run test:db:prepare && node tests/support/require-tests.mjs \"tests/integration/**/*.test.ts\" && node --import ./tests/support/register.mjs --import ./tests/support/integration-env.mjs --test --test-concurrency=1 \"tests/integration/**/*.test.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

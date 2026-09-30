@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Read-only token: CI never pushes, comments or deploys.
+# Deployments remain with the Vercel Git integration.
+permissions:
+  contents: read
+
+# A new push to the same PR cancels its in-progress run; main runs complete.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Lint, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Ephemeral database, destroyed with the job. Credentials are local to
+    # this container and are not secrets.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pulse
+          POSTGRES_PASSWORD: pulse
+          POSTGRES_DB: pulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pulse -d pulse_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # Integration tests and migrations use only this database. The test
+      # harness refuses it unless its name contains "test" and it differs
+      # from DATABASE_URL and DIRECT_URL below.
+      TEST_DATABASE_URL: postgresql://pulse:pulse@localhost:5432/pulse_test
+      # Placeholders so Prisma Client and `next build` can load. They name a
+      # database that does not exist on the CI container; no production
+      # credentials are available to this workflow.
+      DATABASE_URL: postgresql://pulse:pulse@localhost:5432/pulse_app_placeholder
+      DIRECT_URL: postgresql://pulse:pulse@localhost:5432/pulse_app_placeholder
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json # engines.node, shared with Vercel
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Apply migrations to the test database
+        run: npm run test:db:prepare
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Production build
+        run: npm run build

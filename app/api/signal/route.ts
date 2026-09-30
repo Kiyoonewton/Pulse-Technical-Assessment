@@ -18,7 +18,11 @@ import {
   waitBeforeRetry,
 } from "@/lib/transaction-errors";
 import { readJsonObject } from "@/lib/request-body";
-import { enforceRateLimit } from "@/lib/rate-limit";
+import {
+  CONNECTION_REQUEST_RATE_LIMIT,
+  enforceRateLimit,
+  SIGNAL_RATE_LIMIT,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -221,7 +225,7 @@ export async function POST(request: NextRequest) {
   const denied = await requireSession(fromId, token);
   if (denied) return denied;
 
-  const signalLimited = await enforceRateLimit("signal", fromId, 180);
+  const signalLimited = await enforceRateLimit("signal", fromId, SIGNAL_RATE_LIMIT);
   if (signalLimited) return signalLimited;
 
   if (typeof type !== "string" || !VALID_TYPES.includes(type as SignalType)) {
@@ -232,7 +236,7 @@ export async function POST(request: NextRequest) {
     const requestLimited = await enforceRateLimit(
       "connection-request",
       fromId,
-      10,
+      CONNECTION_REQUEST_RATE_LIMIT,
     );
 
     if (requestLimited) return requestLimited;
