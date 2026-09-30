@@ -22,10 +22,10 @@ export async function requireSession(
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const presence = (await prisma.presence.findUnique({
+  const presence = await prisma.presence.findUnique({
     where: { id },
-    select: { tokenHash: true } as any,
-  })) as { tokenHash?: string } | null;
+    select: { tokenHash: true },
+  });
 
   if (!presence) {
     return Response.json({ error: "presence_expired" }, { status: 410 });

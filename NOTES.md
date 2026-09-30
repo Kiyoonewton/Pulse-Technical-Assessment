@@ -46,7 +46,13 @@
 - Initial code inspection found that polling and signaling trust
   client-supplied session IDs without verifying ownership.
   High-priority finding; not fixed yet.
-- Full security review pending.
+- Confirmed unauthenticated polling previously returned 200 using only
+  a public participant ID. Added private session tokens and stored
+  their hashes. Verified polling returns 401 without a token and 403
+  with an incorrect token.
+- Lint and production build passed. Verified legitimate participants
+  can still connect, exchange chat messages, and use video after
+  session-token enforcement.
 
 ## Phase 4 — Make it better
 
