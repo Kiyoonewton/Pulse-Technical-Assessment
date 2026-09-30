@@ -4,12 +4,30 @@ import { prisma } from "@/lib/prisma";
 import { applyPrivacyOffset, isValidLatLng } from "@/lib/geo";
 import { hashToken, isValidToken, readSessionToken } from "@/lib/session";
 import { readJsonObject } from "@/lib/request-body";
+import {
+  cleanExpiredRateLimits,
+  enforceRateLimit,
+  joinRateLimitSubject,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const token = readSessionToken(request);
+  const subject = joinRateLimitSubject(request);
+
+  if (!subject) {
+    return Response.json(
+      { error: "Client address unavailable" },
+      { status: 503 },
+    );
+  }
+
+  const limited = await enforceRateLimit("join", subject, 20);
+  if (limited) return limited;
+
+  await cleanExpiredRateLimits();
 
   if (!isValidToken(token)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });

@@ -18,6 +18,7 @@ import {
   waitBeforeRetry,
 } from "@/lib/transaction-errors";
 import { readJsonObject } from "@/lib/request-body";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -220,8 +221,21 @@ export async function POST(request: NextRequest) {
   const denied = await requireSession(fromId, token);
   if (denied) return denied;
 
+  const signalLimited = await enforceRateLimit("signal", fromId, 180);
+  if (signalLimited) return signalLimited;
+
   if (typeof type !== "string" || !VALID_TYPES.includes(type as SignalType)) {
     return Response.json({ error: "invalid type" }, { status: 400 });
+  }
+
+  if (type === "request") {
+    const requestLimited = await enforceRateLimit(
+      "connection-request",
+      fromId,
+      10,
+    );
+
+    if (requestLimited) return requestLimited;
   }
 
   if (
