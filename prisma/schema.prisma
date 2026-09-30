@@ -19,6 +19,7 @@ model Presence {
   lastSeen         DateTime
   tokenHash        String?
   connectionMember ConnectionMember?
+  intention        Intention         @default(CHAT)
 
   @@index([lastSeen])
 }
@@ -69,4 +70,11 @@ model RateLimit {
   resetAt DateTime
 
   @@index([resetAt])
+}
+
+enum Intention {
+  CHAT
+  GOOD_NEWS
+  LANGUAGE
+  LISTEN
 }

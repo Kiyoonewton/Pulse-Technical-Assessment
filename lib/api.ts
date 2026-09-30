@@ -1,4 +1,5 @@
 import type { PollResponse, SignalType } from "@/lib/types";
+import { DEFAULT_INTENTION, type Intention } from "@/lib/intentions";
 
 const tokens = new Map<string, string>();
 
@@ -36,6 +37,7 @@ export async function join(
   id: string,
   lat: number,
   lng: number,
+  intention: Intention = DEFAULT_INTENTION,
 ): Promise<void> {
   const token = getOrCreateToken(id);
 
@@ -45,7 +47,7 @@ export async function join(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ id, lat, lng }),
+    body: JSON.stringify({ id, lat, lng, intention }),
   });
 
   if (!res.ok) {
