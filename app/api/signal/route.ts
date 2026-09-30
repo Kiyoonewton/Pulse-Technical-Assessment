@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       where: { id: { in: [fromId, toId] } },
       data: { busy: true },
     });
-  } else if (signalType === "decline") {
+  } else if (signalType === "decline" || signalType === "end") {
     await prisma.presence.updateMany({
       where: { id: { in: [fromId, toId] } },
       data: { busy: false },
@@ -93,6 +93,11 @@ export async function POST(request: NextRequest) {
 // Helper: deliver an auto-decline from `target` back to `initiator`.
 async function sendDecline(targetId: string, initiatorId: string) {
   await prisma.signal.create({
-    data: { fromId: targetId, toId: initiatorId, type: "decline", payload: null },
+    data: {
+      fromId: targetId,
+      toId: initiatorId,
+      type: "decline",
+      payload: null,
+    },
   });
 }

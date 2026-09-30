@@ -16,6 +16,10 @@
   after ending video.
 - Still to verify: reconnecting after ending the full connection,
   stale presence cleanup, and repeated connection attempts.
+- Reconnecting after ending a chat was automatically declined because
+  the server left both participants marked busy. Added `"end"` to
+  busy-state cleanup. Verified reconnection and messaging without
+  refreshing either window.
 
 ## Phase 2 — Make it good
 
