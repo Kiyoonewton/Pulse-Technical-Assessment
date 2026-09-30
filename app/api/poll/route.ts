@@ -22,15 +22,23 @@ export async function GET(request: NextRequest) {
   const signalCutoff = new Date(now - SIGNAL_TTL_MS);
 
   // 1) Heartbeat — refresh lastSeen for the caller.
-  await prisma.presence.updateMany({
-    where: {},
+  const heartbeat = await prisma.presence.updateMany({
+    where: { id },
     data: { lastSeen: new Date(now) },
   });
 
+  if (heartbeat.count === 0) {
+    return Response.json({ error: "presence_expired" }, { status: 410 });
+  }
+
   // 2) Reap stale presence rows and orphaned signals (independent deletes —
   // no atomicity needed, and avoids transactions over a PgBouncer pooler).
-  await prisma.presence.deleteMany({ where: { lastSeen: { lt: staleCutoff } } });
-  await prisma.signal.deleteMany({ where: { createdAt: { lt: signalCutoff } } });
+  await prisma.presence.deleteMany({
+    where: { lastSeen: { lt: staleCutoff } },
+  });
+  await prisma.signal.deleteMany({
+    where: { createdAt: { lt: signalCutoff } },
+  });
 
   // 3) Online peers, excluding self.
   const peers = await prisma.presence.findMany({

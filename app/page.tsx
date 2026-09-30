@@ -6,7 +6,7 @@ import WorldMap from "./components/WorldMap";
 import ConnectionPrompt from "./components/ConnectionPrompt";
 import ChatPanel, { type ChatMessage } from "./components/ChatPanel";
 import VideoPanel from "./components/VideoPanel";
-import { join, leave, poll, sendSignal } from "@/lib/api";
+import { join, leave, poll, sendSignal, PresenceExpiredError } from "@/lib/api";
 import { PeerSession, type DescType, type PeerControl } from "@/lib/webrtc";
 import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
@@ -266,8 +266,11 @@ export default function Home() {
   }
 
   const processSignalRef = useRef(processSignal);
+  const teardownRef = useRef(teardown);
+
   useEffect(() => {
     processSignalRef.current = processSignal;
+    teardownRef.current = teardown;
   });
 
   useEffect(() => {
@@ -281,7 +284,16 @@ export default function Home() {
         if (!active) return;
         setPeers(data.peers);
         for (const s of data.signals) processSignalRef.current(s);
-      } catch {}
+      } catch (error) {
+        if (!active) return;
+
+        if (error instanceof PresenceExpiredError) {
+          teardownRef.current();
+          setPeers([]);
+          setPhase("gate");
+          return;
+        }
+      }
       if (active) timer = setTimeout(tick, POLL_INTERVAL_MS);
     };
     tick();
