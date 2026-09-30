@@ -583,6 +583,12 @@ export default function Home() {
           onDecline={declineIncoming}
         />
       )}
+      {video === "active" && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 z-10 bg-[#0a0d14]"
+        />
+      )}
 
       {inChat && (
         <ChatPanel

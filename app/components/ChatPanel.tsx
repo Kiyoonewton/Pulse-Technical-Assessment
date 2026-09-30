@@ -100,28 +100,29 @@ export default function ChatPanel({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onStartVideo}
-          disabled={!connected || videoBusy}
-          className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-4 text-sm text-cyan-200 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="size-5"
+        {!videoActive && (
+          <button
+            type="button"
+            onClick={onStartVideo}
+            disabled={!connected || videoBusy}
+            className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-4 text-sm text-cyan-200 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            <rect x="3" y="6" width="12" height="12" rx="3" />
-            <path
-              d="m15 10 6-3v10l-6-3"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {videoBusy ? "Video in progress" : "Invite to video"}
-        </button>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="size-5"
+            >
+              <rect x="3" y="6" width="12" height="12" rx="3" />
+              <path
+                d="m15 10 6-3v10l-6-3"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {videoBusy ? "Video in progress" : "Invite to video"}
+          </button>)}
       </header>
 
       <div

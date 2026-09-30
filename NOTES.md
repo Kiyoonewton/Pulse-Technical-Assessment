@@ -76,8 +76,18 @@
 
 - Added participant counts and an availability legend. Preview actions
   respond to participants becoming busy or going offline.
+
 - Verified the preview-to-chat flow with two browser windows.
   Lint and production build passed.
+
+- Restyled connection and video invitations with native modal dialogs,
+  keyboard focus containment, and Escape-to-decline behavior.
+
+- Redesigned chat with readable message bubbles, long-text wrapping,
+  and scrolling that preserves the reader's position.
+
+- Kept chat visible during video calls and added microphone/camera
+  toggles, local preview, and separate video/chat exit actions.
 
 ## Phase 3 — Make it secure
 
