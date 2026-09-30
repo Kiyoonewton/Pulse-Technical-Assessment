@@ -576,6 +576,7 @@ export default function Home() {
       {conn.kind === "incoming" && (
         <ConnectionPrompt
           title="A stranger wants to connect"
+          subtitle="Start with a text conversation. Camera and microphone stay off."
           acceptLabel="Accept"
           declineLabel="Decline"
           onAccept={acceptIncoming}
@@ -606,9 +607,9 @@ export default function Home() {
       {video === "incoming" && (
         <ConnectionPrompt
           title="Start video call?"
-          subtitle="The stranger wants to turn on video."
-          acceptLabel="Accept"
-          declineLabel="Decline"
+          subtitle="Accepting will request access to your camera and microphone. You can end video and keep chatting."
+          acceptLabel="Start video"
+          declineLabel="Not now"
           onAccept={acceptVideo}
           onDecline={declineVideo}
         />

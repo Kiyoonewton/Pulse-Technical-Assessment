@@ -192,3 +192,28 @@ button:not(:disabled) {
     transition: none;
   }
 }
+
+.pulse-dialog::backdrop {
+  background: rgb(3 7 14 / 78%);
+}
+
+.pulse-dialog[open] {
+  animation: prompt-enter 180ms ease-out;
+}
+
+@keyframes prompt-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dialog[open] {
+    animation: none;
+  }
+}
