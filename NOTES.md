@@ -4,37 +4,48 @@
 
 - Set up Neon Postgres and Mapbox, then tested with two browser
   windows using different mock locations.
+
 - Connection requests arrived, but after acceptance the connection
   stalled for roughly a minute and failed.
+
 - Found that queued ICE candidates were applied before the remote
   description, with errors silently swallowed. Reversed that order.
   The connection succeeded on retest.
+
 - Chat messages were sent with type `"msg"`, while the receiver
   expected `"chat"`. Aligned the outgoing type with the receiver.
   Verified messages arrive in both directions.
+
 - Verified video starts in both windows and text chat still works
   after ending video.
+
 - Still to verify: reconnecting after ending the full connection,
   stale presence cleanup, and repeated connection attempts.
+
 - Reconnecting after ending a chat was automatically declined because
   the server left both participants marked busy. Added `"end"` to
   busy-state cleanup. Verified reconnection and messaging without
   refreshing either window.
+
 - Each poll refreshed every participant's heartbeat, preventing stale
   users from expiring while anyone remained online. Scoped heartbeat
   updates to the caller. Verified that a participant taken offline
   disappears from the other participant's map after the expiry period.
+
 - After presence expired, the returning browser kept polling without
   restoring its map presence. The API now returns 410 for missing
   presence; the client closes its old connection and returns to entry.
   Verified re-entry restores visibility and allows connecting again.
   Chose explicit re-entry rather than silently resuming an old chat.
+
 - Verified declining a request allows another attempt. Cancelling an
   outgoing request dismisses the recipient's prompt, and a fresh
   connection succeeds without reloading.
+
 - Verified closing a participant's window during chat ends the other
   participant's chat, returns them to the map, and removes the departed
   participant's dot.
+
 - Lint and production build passed after the Phase 1 fixes.
 
 ## Phase 2 — Make it good
@@ -73,6 +84,22 @@
 - Added streamed request-body limits to join, signal, and leave.
   Verified malformed JSON returns 400 and an oversized signal request
   returns 413. Lint and production build passed.
+
+- Added atomic Postgres-backed rate limits for joining and authenticated
+  signaling. IP-based keys use a server-secret HMAC.
+
+- Verified 21 concurrent local join attempts produced 20 authentication
+  rejections and one 429 with Retry-After. Verified requests were allowed
+  through to authentication again after the window reset.
+- Normal connection, chat, and video checks passed, along with lint and
+  production build. Signaling-limit thresholds remain to be tested.
+
+- Verified the connection-request limit with 11 concurrent attempts:
+  10 were processed and auto-declined for a nonexistent target; one
+  returned 429 with Retry-After.
+
+- The separate 180-per-minute signaling limit is implemented but its
+  threshold has not yet been tested.
 
 ## Phase 4 — Make it better
 
