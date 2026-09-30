@@ -36,7 +36,6 @@ export default function EntryGlobe() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -82,8 +81,7 @@ export default function EntryGlobe() {
         markerElevation: 0.01,
       });
     } catch {
-      // No WebGL — the static backdrop stays in place.
-      setFailed(true);
+      // No WebGL — the canvas never fades in, leaving the glow backdrop.
       return;
     }
 
@@ -187,14 +185,12 @@ export default function EntryGlobe() {
       </svg>
 
       <div ref={wrapRef} className="absolute inset-[4%]">
-        {!failed && (
-          <canvas
-            ref={canvasRef}
-            className={`h-full w-full touch-pan-y transition-opacity duration-1000 motion-reduce:transition-none ${
-              ready ? "opacity-100" : "opacity-0"
-            } ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
-          />
-        )}
+        <canvas
+          ref={canvasRef}
+          className={`h-full w-full touch-pan-y transition-opacity duration-1000 motion-reduce:transition-none ${
+            ready ? "opacity-100" : "opacity-0"
+          } ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        />
       </div>
     </div>
   );
