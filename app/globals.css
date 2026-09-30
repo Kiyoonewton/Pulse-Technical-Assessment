@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #0a0d14;
+  --foreground: #f8fafc;
+  --surface: #111622;
+  --surface-hover: #182030;
+  --accent: #22d3ee;
+  --muted: #94a3b8;
+  --border: rgba(56, 189, 248, 0.18);
 }
 
 @theme inline {
@@ -22,7 +28,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 /* Live user dots on the map */
@@ -36,6 +46,16 @@ body {
   box-shadow: 0 0 0 rgba(255, 255, 255, 0.5);
   animation: pulse-ring 2s ease-out infinite;
   transition: transform 0.1s ease;
+}
+
+:where(button, a, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: #22d3ee;
+  color: #0a0d14;
 }
 
 .pulse-dot:hover {
@@ -75,5 +95,29 @@ body {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+/* Welcome screen's decorative globe — not live participant data. */
+.entry-globe-glow {
+  background: radial-gradient(circle, #22d3ee12 0%, transparent 70%);
+  box-shadow: 0 0 120px #22d3ee0f;
+}
+
+.entry-orbit {
+  animation: entry-orbit 24s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes entry-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-orbit,
+  .pulse-dot {
+    animation: none;
   }
 }
