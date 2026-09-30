@@ -71,6 +71,7 @@ export async function sendSignal(
   fromId: string,
   toId: string,
   type: SignalType,
+  connectionId: string,
   payload?: string,
 ): Promise<void> {
   const res = await fetch("/api/signal", {
@@ -79,7 +80,13 @@ export async function sendSignal(
       "Content-Type": "application/json",
       ...authHeaders(fromId),
     },
-    body: JSON.stringify({ fromId, toId, type, payload }),
+    body: JSON.stringify({
+      fromId,
+      toId,
+      type,
+      payload,
+      connectionId,
+    }),
   });
 
   if (!res.ok) {

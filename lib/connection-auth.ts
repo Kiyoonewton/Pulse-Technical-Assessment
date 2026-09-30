@@ -16,6 +16,7 @@ export async function authorizeConnectionSignal(
   fromId: string,
   toId: string,
   type: Exclude<SignalType, "request">,
+  connectionId: string,
 ) {
   const membership = await tx.connectionMember.findUnique({
     where: { presenceId: fromId },
@@ -31,6 +32,10 @@ export async function authorizeConnectionSignal(
   }
 
   const connection = membership.connection;
+
+  if (!connection || connection.id !== connectionId) {
+    throw new ConnectionError("Stale or mismatched connection", 409);
+  }
 
   const correctPair =
     (connection.requesterId === fromId && connection.recipientId === toId) ||

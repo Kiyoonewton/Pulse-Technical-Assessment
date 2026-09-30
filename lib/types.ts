@@ -24,6 +24,7 @@ export interface SignalMsg {
   type: SignalType;
   payload: string | null;
   createdAt: string;
+  connectionId: string | null;
 }
 
 export interface PollResponse {

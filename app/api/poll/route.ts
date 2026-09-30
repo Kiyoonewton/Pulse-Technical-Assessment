@@ -52,8 +52,6 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  // Presence deletion cascades to membership rows.
-  // Remove connections whose participants have both disappeared.
   await prisma.connection.deleteMany({
     where: { members: { none: {} } },
   });
@@ -79,6 +77,15 @@ export async function GET(request: NextRequest) {
   const inbox = await prisma.signal.findMany({
     where: { toId: id },
     orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      fromId: true,
+      toId: true,
+      type: true,
+      payload: true,
+      createdAt: true,
+      connectionId: true,
+    },
   });
   if (inbox.length > 0) {
     await prisma.signal.deleteMany({
@@ -91,7 +98,7 @@ export async function GET(request: NextRequest) {
       id: p.id,
       lat: p.lat,
       lng: p.lng,
-      busy: p.connectionMember !== null,
+      busy: p.connectionMember != null,
     })),
     signals: inbox.map((s) => ({
       id: s.id,
@@ -100,6 +107,7 @@ export async function GET(request: NextRequest) {
       type: s.type as PollResponse["signals"][number]["type"],
       payload: s.payload,
       createdAt: s.createdAt.toISOString(),
+      connectionId: s.connectionId,
     })),
   };
 

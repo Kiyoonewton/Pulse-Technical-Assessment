@@ -88,12 +88,7 @@ export async function cleanupConnections(
             const { requesterId, recipientId } = connection;
 
             await tx.signal.deleteMany({
-              where: {
-                OR: [
-                  { fromId: requesterId, toId: recipientId },
-                  { fromId: recipientId, toId: requesterId },
-                ],
-              },
+              where: { connectionId: connection.id },
             });
 
             await tx.connection.delete({
@@ -115,6 +110,7 @@ export async function cleanupConnections(
                   member.presenceId === requesterId ? recipientId : requesterId,
                 toId: member.presenceId,
                 type: "end",
+                connectionId: connection.id,
               }));
 
             if (notifications.length > 0) {

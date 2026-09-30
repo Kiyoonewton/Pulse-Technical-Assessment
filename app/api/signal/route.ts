@@ -3,7 +3,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { STALE_MS } from "@/lib/presence";
 import type { SignalType } from "@/lib/types";
-import { hashToken, readSessionToken, requireSession } from "@/lib/session";
+import {
+  hashToken,
+  isValidToken,
+  readSessionToken,
+  requireSession,
+} from "@/lib/session";
 import {
   authorizeConnectionSignal,
   ConnectionError,
@@ -35,8 +40,8 @@ async function processSignal(
   type: SignalType,
   payload: string | null,
   token: string,
+  connectionId: string,
 ) {
-  // Retry transactions that lose a concurrent reservation race.
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       return await prisma.$transaction(
@@ -44,7 +49,7 @@ async function processSignal(
           const now = new Date();
           const cutoff = new Date(now.getTime() - STALE_MS);
 
-          // Recheck ownership inside the transaction.
+          // Recheck session ownership inside the transaction.
           const sender = await tx.presence.findUnique({
             where: { id: fromId },
           });
@@ -58,6 +63,24 @@ async function processSignal(
           }
 
           if (type === "request") {
+            // Check for a repeated request before reserving participants.
+            const existing = await tx.connection.findUnique({
+              where: { id: connectionId },
+            });
+
+            if (existing) {
+              if (
+                existing.requesterId === fromId &&
+                existing.recipientId === toId &&
+                existing.status === "PENDING" &&
+                existing.expiresAt > now
+              ) {
+                return { ok: true };
+              }
+
+              throw new ConnectionError("Connection id unavailable", 409);
+            }
+
             const target = await tx.presence.findUnique({
               where: { id: toId },
             });
@@ -68,13 +91,13 @@ async function processSignal(
               },
             });
 
-            // Preserve the client's existing declined-request flow.
             if (!target || target.lastSeen < cutoff || occupied.length > 0) {
               await tx.signal.create({
                 data: {
                   fromId: toId,
                   toId: fromId,
                   type: "decline",
+                  connectionId,
                 },
               });
 
@@ -83,6 +106,7 @@ async function processSignal(
 
             await tx.connection.create({
               data: {
+                id: connectionId,
                 requesterId: fromId,
                 recipientId: toId,
                 status: "PENDING",
@@ -93,11 +117,13 @@ async function processSignal(
               },
             });
           } else {
+            // All subsequent signals must match the current connection.
             const connection = await authorizeConnectionSignal(
               tx,
               fromId,
               toId,
               type,
+              connectionId,
             );
 
             if (type === "accept") {
@@ -106,25 +132,27 @@ async function processSignal(
                 data: { status: "ACTIVE" },
               });
             } else if (type === "decline" || type === "end") {
-              // Drop undelivered signals from the finished connection.
+              // Remove queued signals only for this connection.
               await tx.signal.deleteMany({
-                where: {
-                  OR: [
-                    { fromId, toId },
-                    { fromId: toId, toId: fromId },
-                  ],
-                },
+                where: { connectionId: connection.id },
               });
 
-              // Deleting the connection releases both membership rows.
+              // Cascading deletion releases both membership reservations.
               await tx.connection.delete({
                 where: { id: connection.id },
               });
             }
           }
 
+          // End/decline notifications survive connection deletion.
           await tx.signal.create({
-            data: { fromId, toId, type, payload },
+            data: {
+              fromId,
+              toId,
+              type,
+              payload,
+              connectionId,
+            },
           });
 
           return { ok: true };
@@ -168,7 +196,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "invalid body" }, { status: 400 });
   }
 
-  const { fromId, toId, type, payload } = body as Record<string, unknown>;
+  const { fromId, toId, type, payload, connectionId } = body as Record<
+    string,
+    unknown
+  >;
 
   if (
     typeof fromId !== "string" ||
@@ -183,6 +214,11 @@ export async function POST(request: NextRequest) {
   }
 
   const token = readSessionToken(request);
+
+  if (!isValidToken(token)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const denied = await requireSession(fromId, token);
   if (denied) return denied;
 
@@ -199,13 +235,23 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "invalid payload" }, { status: 400 });
   }
 
+  if (
+    typeof connectionId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      connectionId,
+    )
+  ) {
+    return Response.json({ error: "invalid connection id" }, { status: 400 });
+  }
+
   try {
     const result = await processSignal(
       fromId,
       toId,
       type as SignalType,
       typeof payload === "string" ? payload : null,
-      token!,
+      token,
+      connectionId,
     );
 
     return Response.json(result);
