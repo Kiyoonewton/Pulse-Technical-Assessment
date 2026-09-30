@@ -50,7 +50,23 @@
 
 ## Phase 2 — Make it good
 
-- Not started.
+- Chose the Phosphor Radar direction after exploring visual concepts
+  with Lovable: dark surfaces, cyan accents, restrained glow, and
+  a globe as the visual focus.
+
+- Redesigned the welcome screen with clearer typography, a prominent
+  entry button, and decorative globe artwork.
+
+- Clarified location use, optional video, and privacy wording:
+  chat/video are not stored by Pulse, while coordination data is temporary.
+
+- Added separate location and join-failure messages so users can
+  understand what failed and retry.
+
+- Live-map, request, chat/video, and responsive polish remain in progress.
+
+- Verified entry with location allowed, helpful feedback when denied,
+  and no horizontal overflow at 390px. Lint and production build passed.
 
 ## Phase 3 — Make it secure
 
