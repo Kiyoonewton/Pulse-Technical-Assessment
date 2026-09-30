@@ -159,3 +159,19 @@
   so they are removed with presence rather than retained as profiles.
 
 - Verified different intentions appear correctly across two participants.
+
+- Added shared conversation cards to help strangers move beyond
+  the first hello. Either participant can share an optional prompt.
+
+- Cards travel through the existing WebRTC data channel. Only
+  allowlisted card IDs are accepted; question text comes from the
+  local catalogue. Cards are not stored on the server.
+
+- Cards remain during the current conversation and are cleared
+  when that conversation ends.
+
+- With more time, I would tailor prompts to participants' intentions
+  and avoid repeated questions within a conversation.
+
+- Verified card sharing in both directions, ordinary chat and video,
+  and clearing cards after disconnecting. Lint and build passed.
