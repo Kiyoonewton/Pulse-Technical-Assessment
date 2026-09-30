@@ -11,6 +11,7 @@ import { PeerSession, type DescType, type PeerControl } from "@/lib/webrtc";
 import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
 import ParticipantPreview from "./components/ParticipantPreview";
+import type { Intention } from "@/lib/intentions";
 
 type Conn =
   | { kind: "idle" }
@@ -534,9 +535,13 @@ export default function Home() {
     };
   }, [sessionId, phase]);
 
-  async function handleReady(lat: number, lng: number) {
+  async function handleReady(
+    lat: number,
+    lng: number,
+    intention: Intention,
+  ) {
     setMyLocation({ lat, lng });
-    await join(sessionId, lat, lng);
+    await join(sessionId, lat, lng, intention);
     setPhase("live");
   }
 

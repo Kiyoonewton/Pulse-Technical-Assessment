@@ -152,4 +152,10 @@
 
 ## Phase 4 — Make it better
 
-- Not started.
+- Added temporary “Open to…” intentions at entry and displayed them
+  in participant previews, giving strangers context before connecting.
+
+- Intentions use a server-validated allowlist and live on presence rows,
+  so they are removed with presence rather than retained as profiles.
+
+- Verified different intentions appear correctly across two participants.

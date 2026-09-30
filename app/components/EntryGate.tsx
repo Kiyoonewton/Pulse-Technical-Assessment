@@ -2,16 +2,26 @@
 
 import { useRef, useState } from "react";
 import EntryGlobe from "./EntryGlobe";
+import {
+  DEFAULT_INTENTION,
+  INTENTIONS,
+  type Intention,
+} from "@/lib/intentions";
 
 type EntryStatus = "idle" | "locating" | "joining" | "error";
 
 export default function EntryGate({
   onReady,
 }: {
-  onReady: (lat: number, lng: number) => void | Promise<void>;
+  onReady: (
+    lat: number,
+    lng: number,
+    intention: Intention,
+  ) => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<EntryStatus>("idle");
   const [error, setError] = useState("");
+  const [intention, setIntention] = useState<Intention>(DEFAULT_INTENTION);
   const entering = useRef(false);
 
   const busy = status === "locating" || status === "joining";
@@ -39,7 +49,7 @@ export default function EntryGate({
         setStatus("joining");
 
         try {
-          await onReady(coords.latitude, coords.longitude);
+          await onReady(coords.latitude, coords.longitude, intention);
           entering.current = false;
         } catch {
           fail(
@@ -119,7 +129,45 @@ export default function EntryGate({
             Somewhere, someone has a story you haven’t heard.
             Find a dot on the globe, say hello, and see where it goes.
           </p>
+          <fieldset disabled={busy} className="mt-8">
+            <legend className="text-sm font-medium text-slate-200">
+              What are you open to?
+            </legend>
 
+            <p className="mt-2 text-sm text-slate-400">
+              Visible to others while you’re here. No profile to keep.
+            </p>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {INTENTIONS.map((option) => (
+                <label
+                  key={option.id}
+                  className={`relative flex cursor-pointer gap-3 rounded-xl border p-3 transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-cyan-300 ${intention === option.id
+                      ? "border-cyan-300/60 bg-cyan-300/10"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                    } ${busy ? "cursor-wait opacity-60" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="intention"
+                    value={option.id}
+                    checked={intention === option.id}
+                    onChange={() => setIntention(option.id)}
+                    className="mt-1 size-4 shrink-0 accent-cyan-300"
+                  />
+
+                  <span>
+                    <span className="block text-sm font-medium text-slate-100">
+                      {option.label}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-slate-400">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className="mt-9">
             <button
               type="button"
