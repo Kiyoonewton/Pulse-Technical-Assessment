@@ -175,3 +175,24 @@
 
 - Verified card sharing in both directions, ordinary chat and video,
   and clearing cards after disconnecting. Lint and build passed.
+
+## Automated tests
+
+- Added 37 automated tests (`npm test`; setup in `TESTING.md`). All
+  passed locally, along with lint and production build.
+
+- Integration tests hit the real API handlers against an isolated
+  Postgres database. They refuse to run against the app's
+  `DATABASE_URL`/`DIRECT_URL`.
+
+- Covered: session ownership, connection authorization, heartbeat and
+  cleanup, intention validation, shared rate limits including concurrent
+  bursts, and conversation-card handling with WebRTC faked.
+
+- Checked the tests catch regressions by temporarily removing each
+  protection. A non-atomic rate limiter passed the sequential tests but
+  failed the concurrency tests (40 of 40 joins admitted against a limit
+  of 20).
+
+- No new bugs found. Real WebRTC connectivity and the UI still need the
+  manual two-browser checks.
