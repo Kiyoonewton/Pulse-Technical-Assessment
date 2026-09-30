@@ -45,7 +45,8 @@
 
 - Initial code inspection found that polling and signaling trust
   client-supplied session IDs without verifying ownership.
-  High-priority finding; not fixed yet.
+  High-priority finding; session ownership checks implemented.
+  Connection authorization and abuse controls remain pending.
 - Confirmed unauthenticated polling previously returned 200 using only
   a public participant ID. Added private session tokens and stored
   their hashes. Verified polling returns 401 without a token and 403
