@@ -24,6 +24,11 @@
   users from expiring while anyone remained online. Scoped heartbeat
   updates to the caller. Verified that a participant taken offline
   disappears from the other participant's map after the expiry period.
+- After presence expired, the returning browser kept polling without
+  restoring its map presence. The API now returns 410 for missing
+  presence; the client closes its old connection and returns to entry.
+  Verified re-entry restores visibility and allows connecting again.
+  Chose explicit re-entry rather than silently resuming an old chat.
 
 ## Phase 2 — Make it good
 

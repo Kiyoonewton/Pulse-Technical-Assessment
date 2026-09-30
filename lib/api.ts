@@ -1,6 +1,13 @@
 // Client-side helpers for talking to the coordination API.
 import type { PollResponse, SignalType } from "@/lib/types";
 
+export class PresenceExpiredError extends Error {
+  constructor() {
+    super("Your presence expired. Please rejoin.");
+    this.name = "PresenceExpiredError";
+  }
+}
+
 export async function join(
   id: string,
   lat: number,
@@ -17,6 +24,7 @@ export async function poll(id: string): Promise<PollResponse> {
   const res = await fetch(`/api/poll?id=${encodeURIComponent(id)}`, {
     cache: "no-store",
   });
+  if (res.status === 410) throw new PresenceExpiredError();
   if (!res.ok) throw new Error(`poll failed: ${res.status}`);
   return res.json();
 }
