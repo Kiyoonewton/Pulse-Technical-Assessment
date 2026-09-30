@@ -11,7 +11,7 @@ import { PeerSession, type DescType, type PeerControl } from "@/lib/webrtc";
 import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
 import ParticipantPreview from "./components/ParticipantPreview";
-import type { Intention } from "@/lib/intentions";
+import { INTENTIONS, type Intention } from "@/lib/intentions";
 
 type Conn =
   | { kind: "idle" }
@@ -559,6 +559,15 @@ export default function Home() {
 
   const inChat = conn.kind === "connecting" || conn.kind === "connected";
 
+  const incomingPeer =
+    conn.kind === "incoming"
+      ? peers.find((peer) => peer.id === conn.peerId)
+      : undefined;
+
+  const incomingIntention = INTENTIONS.find(
+    (option) => option.id === incomingPeer?.intention,
+  );
+
   return (
     <main className="fixed inset-0 overflow-hidden">
       <WorldMap
@@ -628,7 +637,11 @@ export default function Home() {
       {conn.kind === "incoming" && (
         <ConnectionPrompt
           title="A stranger wants to connect"
-          subtitle="Start with a text conversation. Camera and microphone stay off."
+          subtitle={
+            incomingIntention
+              ? `Open to: ${incomingIntention.label}. Start with text; camera and microphone stay off.`
+              : "Start with a text conversation. Camera and microphone stay off."
+          }
           acceptLabel="Accept"
           declineLabel="Decline"
           onAccept={acceptIncoming}
