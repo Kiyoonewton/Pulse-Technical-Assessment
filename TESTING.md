@@ -27,6 +27,36 @@ npm test
 | `npm run test:integration` | Migrates the test DB, then runs API integration tests serially |
 | `npm run test:db:prepare` | Only applies `prisma/migrations` to the test DB |
 
+## Environment variables
+
+| Variable | Used by | Notes |
+| --- | --- | --- |
+| `TEST_DATABASE_URL` | Integration tests, `test:db:prepare` | **Required.** A disposable database whose name contains `test`. Never the app database. |
+| `DATABASE_URL` / `DIRECT_URL` | App, Prisma CLI | Read by the tests only to *refuse* matching them, then overridden with `TEST_DATABASE_URL`. |
+| `RATE_LIMIT_SECRET` | App | Set to a fixed dummy value inside the test process. No real value needed. |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | App UI | Not needed for tests or the build. |
+
+Secrets live only in the gitignored `.env` / `.env.test` and in Vercel's
+project settings. None are committed, and CI uses none.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`:
+`npm ci` (npm cache) → `prisma generate` → lint → unit tests → migrate test
+DB → integration tests → production build.
+
+- **Node version** comes from `engines.node` (`24.x`), which Vercel also reads.
+- **Database:** an ephemeral `postgres:16` service with a `pg_isready` health
+  check provides `pulse_test`. `DATABASE_URL`/`DIRECT_URL` are placeholders
+  naming a database that doesn't exist. The workflow has no secrets, so it has
+  no path to production.
+- **Missing setup fails the run.** Without `TEST_DATABASE_URL` the harness
+  exits 1, and a suite whose pattern matches no files also exits 1, rather
+  than reporting a passing run with zero tests.
+- **Least privilege:** `permissions: contents: read`. A new push to a PR cancels
+  that PR's in-progress run.
+- **Deployments** stay with Vercel's Git integration. CI never deploys.
+
 ## Isolation safeguards
 
 Integration tests never touch the development or production database.
