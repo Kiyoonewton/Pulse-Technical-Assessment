@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { applyPrivacyOffset, isValidLatLng } from "@/lib/geo";
 import { hashToken, isValidToken, readSessionToken } from "@/lib/session";
+import { readJsonObject } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,13 +15,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let body: unknown;
+  const parsed = await readJsonObject(request, 4 * 1024);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "invalid body" }, { status: 400 });
-  }
+  const body = parsed.body;
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return Response.json({ error: "invalid body" }, { status: 400 });

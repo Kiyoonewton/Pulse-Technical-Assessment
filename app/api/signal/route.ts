@@ -17,6 +17,7 @@ import {
   isTransactionConflict,
   waitBeforeRetry,
 } from "@/lib/transaction-errors";
+import { readJsonObject } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -184,13 +185,10 @@ async function processSignal(
 }
 
 export async function POST(request: NextRequest) {
-  let body: unknown;
+  const parsed = await readJsonObject(request, 512 * 1024);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "invalid body" }, { status: 400 });
-  }
+  const body = parsed.body;
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return Response.json({ error: "invalid body" }, { status: 400 });

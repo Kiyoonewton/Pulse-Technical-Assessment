@@ -1,18 +1,16 @@
 import type { NextRequest } from "next/server";
 import { cleanupConnections } from "@/lib/connection-cleanup";
 import { hashToken, isValidToken, requireSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  let body: unknown;
+  const parsed = await readJsonObject(request, 4 * 1024);
+  if (!parsed.ok) return parsed.response;
 
-  try {
-    body = JSON.parse(await request.text());
-  } catch {
-    return Response.json({ error: "invalid body" }, { status: 400 });
-  }
+  const body = parsed.body;
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return Response.json({ error: "invalid body" }, { status: 400 });
