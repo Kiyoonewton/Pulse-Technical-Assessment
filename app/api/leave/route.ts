@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { requireSession } from "@/lib/session";
+import { cleanupConnections } from "@/lib/connection-cleanup";
+import { hashToken, isValidToken, requireSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,14 +24,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "invalid id" }, { status: 400 });
   }
 
+  if (!isValidToken(token)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const denied = await requireSession(id, token);
   if (denied) return denied;
 
-  await prisma.signal.deleteMany({
-    where: { OR: [{ toId: id }, { fromId: id }] },
-  });
-
-  await prisma.presence.deleteMany({ where: { id } });
+  await cleanupConnections(id, hashToken(token));
 
   return Response.json({ ok: true });
 }

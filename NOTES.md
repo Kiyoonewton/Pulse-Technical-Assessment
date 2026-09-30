@@ -43,17 +43,26 @@
 
 ## Phase 3 — Make it secure
 
-- Initial code inspection found that polling and signaling trust
-  client-supplied session IDs without verifying ownership.
-  High-priority finding; session ownership checks implemented.
-  Connection authorization and abuse controls remain pending.
-- Confirmed unauthenticated polling previously returned 200 using only
-  a public participant ID. Added private session tokens and stored
-  their hashes. Verified polling returns 401 without a token and 403
-  with an incorrect token.
-- Lint and production build passed. Verified legitimate participants
-  can still connect, exchange chat messages, and use video after
-  session-token enforcement.
+- **High priority — session impersonation:** Polling trusted a public
+  participant ID without proof of ownership. Confirmed an unauthenticated
+  request returned 200. Added private session tokens, stored only their
+  hashes, and enforced ownership checks on join, poll, signal, and leave.
+- **Verification:** Polling returns 401 without a token and 403 with an
+  incorrect token. Lint and production build passed. Legitimate participants
+  can still connect, exchange messages, and use video.
+- **High priority — missing connection authorization:** An authenticated
+  third participant sent an unrelated `"end"` signal and received 200.
+  Session ownership does not establish connection membership. Fix pending:
+  track connections server-side and enforce participant and state checks
+  before delivering signals or changing busy status.
+- Further input-validation and abuse-control review remains pending.
+- Added server-side connection records and participant/state checks.
+  Verified an authenticated third participant's unrelated end signal
+  returns 403, while the legitimate participants can still chat.
+- Availability now derives from connection membership. Verified
+  closing a participant's window completes cleanup without HTTP 500s
+  in the latest retest.
+- Delayed-signal protection and further abuse controls remain pending.
 
 ## Phase 4 — Make it better
 

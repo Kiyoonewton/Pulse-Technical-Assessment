@@ -252,14 +252,19 @@ export default function Home() {
       case "end": {
         const c = connRef.current;
         if (
-          (c.kind === "incoming" ||
+          (c.kind === "requesting" ||
+            c.kind === "incoming" ||
             c.kind === "connecting" ||
             c.kind === "connected") &&
           c.peerId === sig.fromId
         ) {
-          if (c.kind === "incoming") setConn({ kind: "idle" });
-          else teardown("Stranger disconnected.");
+          teardown(
+            c.kind === "requesting" || c.kind === "incoming"
+              ? "Connection request ended."
+              : "Stranger disconnected.",
+          );
         }
+
         break;
       }
     }
@@ -308,10 +313,8 @@ export default function Home() {
     if (!sessionId || phase !== "live") return;
     const onLeave = () => leave(sessionId);
     window.addEventListener("pagehide", onLeave);
-    window.addEventListener("beforeunload", onLeave);
     return () => {
       window.removeEventListener("pagehide", onLeave);
-      window.removeEventListener("beforeunload", onLeave);
     };
   }, [sessionId, phase]);
 
