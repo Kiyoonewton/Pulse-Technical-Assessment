@@ -1,9 +1,33 @@
-// Client-side helpers for talking to the coordination API.
 import type { PollResponse, SignalType } from "@/lib/types";
+
+const tokens = new Map<string, string>();
+
+function getOrCreateToken(id: string): string {
+  const existing = tokens.get(id);
+  if (existing) return existing;
+
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const token = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  tokens.set(id, token);
+  return token;
+}
+
+function authHeaders(id: string): Record<string, string> {
+  const token = tokens.get(id);
+
+  if (!token) {
+    throw new PresenceExpiredError();
+  }
+
+  return { Authorization: `Bearer ${token}` };
+}
 
 export class PresenceExpiredError extends Error {
   constructor() {
-    super("Your presence expired. Please rejoin.");
+    super("Your session is unavailable. Please rejoin.");
     this.name = "PresenceExpiredError";
   }
 }
@@ -13,18 +37,32 @@ export async function join(
   lat: number,
   lng: number,
 ): Promise<void> {
-  await fetch("/api/join", {
+  const token = getOrCreateToken(id);
+
+  const res = await fetch("/api/join", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({ id, lat, lng }),
   });
+
+  if (!res.ok) {
+    throw new Error(`join failed: ${res.status}`);
+  }
 }
 
 export async function poll(id: string): Promise<PollResponse> {
   const res = await fetch(`/api/poll?id=${encodeURIComponent(id)}`, {
     cache: "no-store",
+    headers: authHeaders(id),
   });
-  if (res.status === 410) throw new PresenceExpiredError();
+
+  if ([401, 403, 410].includes(res.status)) {
+    throw new PresenceExpiredError();
+  }
+
   if (!res.ok) throw new Error(`poll failed: ${res.status}`);
   return res.json();
 }
@@ -35,24 +73,41 @@ export async function sendSignal(
   type: SignalType,
   payload?: string,
 ): Promise<void> {
-  await fetch("/api/signal", {
+  const res = await fetch("/api/signal", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(fromId),
+    },
     body: JSON.stringify({ fromId, toId, type, payload }),
   });
+
+  if (!res.ok) {
+    throw new Error(`signal failed: ${res.status}`);
+  }
 }
 
-// Fire-and-forget leave that survives the tab closing.
 export function leave(id: string): void {
-  const body = JSON.stringify({ id });
-  if (typeof navigator !== "undefined" && navigator.sendBeacon) {
-    navigator.sendBeacon("/api/leave", body);
-  } else {
-    void fetch("/api/leave", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      keepalive: true,
-    });
+  const token = tokens.get(id);
+  if (!token) return;
+
+  // sendBeacon cannot set an Authorization header.
+  const body = JSON.stringify({ id, token });
+
+  if (
+    typeof navigator !== "undefined" &&
+    navigator.sendBeacon &&
+    navigator.sendBeacon("/api/leave", body)
+  ) {
+    return;
   }
+
+  void fetch("/api/leave", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    // Presence expiry handles a failed leave request.
+  });
 }

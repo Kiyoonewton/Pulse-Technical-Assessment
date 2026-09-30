@@ -17,6 +17,7 @@ model Presence {
   lng      Float
   busy     Boolean  @default(false) // true while in an active connection
   lastSeen DateTime
+  tokenHash String?
 
   @@index([lastSeen])
 }
