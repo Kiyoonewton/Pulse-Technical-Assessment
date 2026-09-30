@@ -35,6 +35,7 @@
 - Verified closing a participant's window during chat ends the other
   participant's chat, returns them to the map, and removes the departed
   participant's dot.
+- Lint and production build passed after the Phase 1 fixes.
 
 ## Phase 2 — Make it good
 
