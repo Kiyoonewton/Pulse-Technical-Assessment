@@ -43,26 +43,32 @@
 
 ## Phase 3 — Make it secure
 
-- **High priority — session impersonation:** Polling trusted a public
-  participant ID without proof of ownership. Confirmed an unauthenticated
-  request returned 200. Added private session tokens, stored only their
-  hashes, and enforced ownership checks on join, poll, signal, and leave.
-- **Verification:** Polling returns 401 without a token and 403 with an
-  incorrect token. Lint and production build passed. Legitimate participants
-  can still connect, exchange messages, and use video.
-- **High priority — missing connection authorization:** An authenticated
-  third participant sent an unrelated `"end"` signal and received 200.
-  Session ownership does not establish connection membership. Fix pending:
-  track connections server-side and enforce participant and state checks
-  before delivering signals or changing busy status.
-- Further input-validation and abuse-control review remains pending.
-- Added server-side connection records and participant/state checks.
-  Verified an authenticated third participant's unrelated end signal
-  returns 403, while the legitimate participants can still chat.
-- Availability now derives from connection membership. Verified
-  closing a participant's window completes cleanup without HTTP 500s
-  in the latest retest.
-- Delayed-signal protection and further abuse controls remain pending.
+- **High priority — session impersonation:** Polling accepted a public
+  participant ID without proof of ownership. Added private session tokens,
+  stored only their hashes, and enforced ownership checks on join, poll,
+  signal, and leave. Verified polling returns 401 without a token and 403
+  with an incorrect token.
+
+- **High priority — connection authorization:** An authenticated third
+  participant could send an unrelated `"end"` signal. Added server-side
+  connection records and participant/state checks. Verified the same
+  attempt returns 403 while the legitimate participants can still chat.
+
+- **Stale signals:** Scoped signals to individual connection IDs. Replayed
+  an old connection's end signal after reconnecting the same participants:
+  the API returned 409, and the current chat continued delivering messages.
+
+- **Lifecycle cleanup:** Availability now derives from connection
+  membership. Added bounded transaction-conflict retries and cleanup for
+  expired or abandoned connections. The latest successful close-window
+  retest completed without HTTP 500s; cleanup latency remains an open issue.
+
+- **Verification:** Lint and production build passed after session-token
+  enforcement. Legitimate participants could still connect, chat, and use
+  video.
+
+- **Remaining:** Further input-validation and abuse-control review, plus
+  cleanup performance improvements.
 
 ## Phase 4 — Make it better
 
