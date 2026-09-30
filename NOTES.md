@@ -101,6 +101,11 @@
 - The separate 180-per-minute signaling limit is implemented but its
   threshold has not yet been tested.
 
+- Verified the general signaling limit with 181 concurrent authenticated
+  requests using an invalid signal type: 180 returned 400 and one
+  returned 429 with Retry-After. The test completed within one window
+  with no unexpected responses.
+
 ## Phase 4 — Make it better
 
 - Not started.
