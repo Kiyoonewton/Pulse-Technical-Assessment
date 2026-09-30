@@ -7,13 +7,13 @@ import type { PeerDot } from "@/lib/types";
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "pk.eyJ1IjoicHVsc2UtbWFwIiwiYSI6ImNrMDBkZW1vMDAwMDAwMDAifQ.AAAAAAAAAAAAAAAAAAAAAA";
 
-function dotColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
-}
+// function dotColor(id: string): string {
+//   let hash = 0;
+//   for (let i = 0; i < id.length; i++) {
+//     hash = (hash * 31 + id.charCodeAt(i)) | 0;
+//   }
+//   return `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
+// }
 
 export default function WorldMap({
   peers,
@@ -56,11 +56,37 @@ export default function WorldMap({
         style: "mapbox://styles/mapbox/dark-v11",
         // Open centered on the user if we know where they are, else world view.
         center: me ? [me.lng, me.lat] : [0, 20],
-        zoom: me ? 4 : 1.4,
+        zoom: 1.5,
+        projection: "globe",
         attributionControl: true,
       });
       map.on("load", () => {
-        if (!cancelled) setReady(true);
+        if (cancelled) return;
+
+        map.setFog({
+          color: "#102332",
+          "high-color": "#123b4a",
+          "space-color": "#0a0d14",
+          "horizon-blend": 0.12,
+          "star-intensity": 0,
+        });
+
+        // Keep country names for orientation; remove smaller labels.
+        for (const layer of map.getStyle().layers ?? []) {
+          if (layer.type === "symbol" && layer.id !== "country-label") {
+            map.setLayoutProperty(layer.id, "visibility", "none");
+          }
+        }
+
+        if (map.getLayer("water")) {
+          map.setPaintProperty("water", "fill-color", "#091521");
+        }
+
+        if (map.getLayer("land")) {
+          map.setPaintProperty("land", "background-color", "#111f2b");
+        }
+
+        setReady(true);
       });
       mapRef.current = map;
     })();
@@ -124,9 +150,8 @@ export default function WorldMap({
         let marker = markers.get(peer.id);
         if (!marker) {
           const el = document.createElement("button");
+          el.type = "button";
           el.className = "pulse-dot";
-          el.style.background = dotColor(peer.id);
-          el.title = "Tap to connect";
           el.addEventListener("click", (e) => {
             e.stopPropagation();
             if (canConnectRef.current) onPeerClickRef.current(peer.id);
@@ -136,7 +161,18 @@ export default function WorldMap({
             .addTo(map);
           markers.set(peer.id, marker);
         }
-        marker.getElement().style.opacity = peer.busy ? "0.35" : "1";
+        marker.setLngLat([peer.lng, peer.lat]);
+
+        const element = marker.getElement();
+        const label = `Stranger ${peer.id.slice(0, 4).toUpperCase()}`;
+        const availability = peer.busy ? "In a conversation" : "Available";
+
+        element.dataset.busy = String(peer.busy);
+        element.title = `${label} · ${availability}`;
+        element.setAttribute(
+          "aria-label",
+          `${label}, ${availability.toLowerCase()}. View participant.`,
+        );
       }
 
       // Drop markers for peers that went offline / got filtered out.
@@ -168,8 +204,45 @@ export default function WorldMap({
       )}
 
       {/* Online count */}
-      <div className="absolute bottom-4 left-4 rounded-full bg-zinc-900/80 px-3 py-1.5 text-xs text-zinc-300 backdrop-blur">
-        {peers.length} online
+      <div className="pointer-events-none absolute inset-x-4 top-5 flex items-start justify-between gap-4 sm:inset-x-6">
+        <div>
+          <p className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+            <span
+              aria-hidden="true"
+              className="size-2.5 rounded-full bg-cyan-300"
+            />
+            Pulse
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Select a dot. Start with hello.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-cyan-300/15 bg-[#111622]/95 px-4 py-3 text-right">
+          <p className="text-sm font-medium text-slate-100">
+            {peers.length} {peers.length === 1 ? "other person" : "other people"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {peers.filter((peer) => !peer.busy).length} available
+          </p>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-10 left-4 flex gap-4 rounded-xl border border-white/10 bg-[#111622]/95 px-4 py-3 text-xs text-slate-300 sm:left-6">
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-full bg-cyan-300"
+          />
+          Available
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="size-2 rounded-sm bg-amber-400"
+          />
+          In conversation
+        </span>
       </div>
     </div>
   );

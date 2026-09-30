@@ -10,6 +10,7 @@ import { join, leave, poll, sendSignal, PresenceExpiredError } from "@/lib/api";
 import { PeerSession, type DescType, type PeerControl } from "@/lib/webrtc";
 import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
+import ParticipantPreview from "./components/ParticipantPreview";
 
 type Conn =
   | { kind: "idle" }
@@ -34,6 +35,26 @@ export default function Home() {
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
+  const [selectedPeerId, setSelectedPeerId] = useState<string | null>(null);
+  const previewTriggerRef = useRef<HTMLElement | null>(null);
+
+  function selectPeer(peerId: string) {
+    if (connRef.current.kind !== "idle") return;
+
+    previewTriggerRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    setSelectedPeerId(peerId);
+  }
+
+  function closePreview() {
+    setSelectedPeerId(null);
+
+    const trigger = previewTriggerRef.current;
+    if (trigger?.isConnected) trigger.focus();
+  }
 
   const [conn, _setConn] = useState<Conn>({ kind: "idle" });
   const connRef = useRef<Conn>(conn);
@@ -87,6 +108,7 @@ export default function Home() {
     peerRef.current = null;
     oldPeer?.close();
 
+    setSelectedPeerId(null);
     setLocalStream(null);
     setRemoteStream(null);
     setVideo("none");
@@ -194,6 +216,15 @@ export default function Home() {
 
   function requestConnection(peerId: string) {
     if (connRef.current.kind !== "idle") return;
+
+    const target = peers.find((peer) => peer.id === peerId);
+
+    if (!target || target.busy) {
+      showNotice("This stranger is no longer available.");
+      return;
+    }
+
+    setSelectedPeerId(null);
 
     const connectionId = crypto.randomUUID();
     setConn({ kind: "requesting", peerId, connectionId });
@@ -512,9 +543,18 @@ export default function Home() {
       <WorldMap
         peers={peers}
         me={myLocation}
-        onPeerClick={requestConnection}
+        onPeerClick={selectPeer}
         canConnect={conn.kind === "idle"}
       />
+
+      {conn.kind === "idle" && selectedPeerId !== null && (
+        <ParticipantPreview
+          key={selectedPeerId}
+          peer={peers.find((peer) => peer.id === selectedPeerId)}
+          onConnect={() => requestConnection(selectedPeerId)}
+          onClose={closePreview}
+        />
+      )}
 
       {notice && (
         <div className="absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-full bg-zinc-800/90 px-4 py-2 text-sm text-zinc-100 shadow-lg backdrop-blur">

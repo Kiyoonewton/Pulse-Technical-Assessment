@@ -68,6 +68,17 @@
 - Verified entry with location allowed, helpful feedback when denied,
   and no horizontal overflow at 390px. Lint and production build passed.
 
+- Added a participant preview before sending a connection request,
+  making connection attempts deliberate.
+
+- Restyled the live globe with a dark atmosphere, fewer map labels,
+  cyan available markers, and amber square busy markers.
+
+- Added participant counts and an availability legend. Preview actions
+  respond to participants becoming busy or going offline.
+- Verified the preview-to-chat flow with two browser windows.
+  Lint and production build passed.
+
 ## Phase 3 — Make it secure
 
 - **High priority — session impersonation:** Polling accepted a public

@@ -121,3 +121,74 @@ button:not(:disabled) {
     animation: none;
   }
 }
+
+.pulse-dot {
+  --beacon-color: #22d3ee;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Animate inside the marker; Mapbox controls its outer transform. */
+.pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: 15px;
+  border: 2px solid #e0faff;
+  border-radius: 50%;
+  background: var(--beacon-color);
+  box-shadow: 0 0 14px var(--beacon-color);
+  transition: scale 150ms ease;
+}
+
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--beacon-color);
+  border-radius: 50%;
+  opacity: 0;
+  animation: beacon-pulse 3.2s ease-out infinite;
+}
+
+.pulse-dot[data-busy="true"] {
+  --beacon-color: #f59e0b;
+}
+
+.pulse-dot[data-busy="true"]::before {
+  border-radius: 3px;
+}
+
+.pulse-dot[data-busy="true"]::after {
+  animation: none;
+}
+
+.pulse-dot:hover::before,
+.pulse-dot:focus-visible::before {
+  scale: 1.25;
+}
+
+@keyframes beacon-pulse {
+  from {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot::after {
+    animation: none;
+  }
+
+  .pulse-dot::before {
+    transition: none;
+  }
+}
