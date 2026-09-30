@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { PeerDot } from "@/lib/types";
+import { INTENTIONS } from "@/lib/intentions";
 
 export default function ParticipantPreview({
     peer,
@@ -22,6 +23,10 @@ export default function ParticipantPreview({
     const label = peer
         ? `Stranger ${peer.id.slice(0, 4).toUpperCase()}`
         : "Stranger offline";
+
+    const intention = peer
+        ? INTENTIONS.find((option) => option.id === peer.intention)
+        : undefined;
 
     return (
         <section
@@ -74,10 +79,10 @@ export default function ParticipantPreview({
                 <span
                     aria-hidden="true"
                     className={`size-2 rounded-full ${!peer
-                            ? "bg-slate-500"
-                            : peer.busy
-                                ? "bg-amber-400"
-                                : "bg-cyan-300"
+                        ? "bg-slate-500"
+                        : peer.busy
+                            ? "bg-amber-400"
+                            : "bg-cyan-300"
                         }`}
                 />
                 {!peer
@@ -86,6 +91,17 @@ export default function ParticipantPreview({
                         ? "Currently in a conversation"
                         : "Available to connect"}
             </p>
+
+            {intention && (
+                <div className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-300/5 p-3">
+                    <p className="text-sm font-medium text-cyan-200">
+                        Open to: {intention.label}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                        {intention.description}
+                    </p>
+                </div>
+            )}
 
             <p className="mt-6 text-sm leading-relaxed text-slate-400">
                 Start with a hello. They can accept or decline, and either of you

@@ -89,6 +89,13 @@
 - Kept chat visible during video calls and added microphone/camera
   toggles, local preview, and separate video/chat exit actions.
 
+- Removed conflicting legacy marker animation and transform rules.
+  Mapbox controls marker positioning; pulse and hover effects now
+  apply to the inner marker.
+
+- Removed the fake Mapbox-token fallback so missing configuration
+  reaches the existing explanatory message.
+
 ## Phase 3 — Make it secure
 
 - **High priority — session impersonation:** Polling accepted a public
@@ -145,4 +152,10 @@
 
 ## Phase 4 — Make it better
 
-- Not started.
+- Added temporary “Open to…” intentions at entry and displayed them
+  in participant previews, giving strangers context before connecting.
+
+- Intentions use a server-validated allowlist and live on presence rows,
+  so they are removed with presence rather than retained as profiles.
+
+- Verified different intentions appear correctly across two participants.

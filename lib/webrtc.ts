@@ -1,3 +1,4 @@
+import { isIcebreakerId, type IcebreakerId } from "@/lib/icebreakers";
 export type DescType = "offer" | "answer" | "ice";
 export type PeerControl =
   | "video-request"
@@ -12,6 +13,7 @@ interface PeerCallbacks {
   onRemoteStream: (stream: MediaStream | null) => void;
   onConnectionState: (state: RTCPeerConnectionState) => void;
   onChannelOpen: () => void;
+  onIcebreaker: (id: IcebreakerId) => void;
 }
 
 const ICE_CONFIG: RTCConfiguration = {
@@ -78,6 +80,8 @@ export class PeerSession {
         const msg = JSON.parse(e.data as string);
         if (msg.t === "chat" && typeof msg.text === "string") {
           this.cb.onChat(msg.text);
+        } else if (msg.t === "icebreaker" && isIcebreakerId(msg.id)) {
+          this.cb.onIcebreaker(msg.id);
         } else if (msg.t === "ctrl" && typeof msg.ctrl === "string") {
           this.cb.onControl(msg.ctrl as PeerControl);
         }
@@ -130,6 +134,19 @@ export class PeerSession {
 
   sendChat(text: string) {
     this.safeSend({ t: "chat", text });
+  }
+
+  sendIcebreaker(id: IcebreakerId): boolean {
+    if (!isIcebreakerId(id) || this.dc?.readyState !== "open") {
+      return false;
+    }
+
+    try {
+      this.dc.send(JSON.stringify({ t: "icebreaker", id }));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   sendControl(ctrl: PeerControl) {

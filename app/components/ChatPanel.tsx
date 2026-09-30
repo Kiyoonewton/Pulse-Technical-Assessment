@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ICEBREAKERS, type IcebreakerId } from "@/lib/icebreakers";
 
 export interface ChatMessage {
   id: number;
   mine: boolean;
   text: string;
+  kind?: "icebreaker";
 }
 
 export default function ChatPanel({
@@ -14,6 +16,7 @@ export default function ChatPanel({
   videoBusy,
   videoActive = false,
   onSend,
+  onShareIcebreaker,
   onStartVideo,
   onEnd,
 }: {
@@ -22,11 +25,13 @@ export default function ChatPanel({
   videoBusy: boolean;
   videoActive?: boolean;
   onSend: (text: string) => void;
+  onShareIcebreaker: (id: IcebreakerId) => boolean;
   onStartVideo: () => void;
   onEnd: () => void;
 }) {
   const [draft, setDraft] = useState("");
   const [sendError, setSendError] = useState("");
+  const [nextCardIndex, setNextCardIndex] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +59,15 @@ export default function ChatPanel({
       inputRef.current?.focus();
     } catch {
       setSendError("Couldn't send that message. Please try again.");
+    }
+  }
+
+  function shareCard() {
+    const card = ICEBREAKERS[nextCardIndex % ICEBREAKERS.length];
+
+    if (onShareIcebreaker(card.id)) {
+      followLatestRef.current = true;
+      setNextCardIndex((index) => index + 1);
     }
   }
 
@@ -173,17 +187,33 @@ export default function ChatPanel({
               className={`flex ${message.mine ? "justify-end" : "justify-start"
                 }`}
             >
-              <p
-                className={`max-w-[85%] rounded-2xl px-4 py-3 text-base leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] ${message.mine
-                  ? "rounded-br-sm border border-cyan-300/15 bg-[#12333f] text-cyan-50"
-                  : "rounded-bl-sm border border-white/5 bg-[#1b2432] text-slate-100"
-                  }`}
-              >
-                <span className="sr-only">
-                  {message.mine ? "You: " : "Stranger: "}
-                </span>
-                {message.text}
-              </p>
+              {message.kind === "icebreaker" ? (
+                <div className="w-full rounded-2xl border border-cyan-300/25 bg-cyan-300/5 p-4">
+                  <p className="font-mono text-xs tracking-wider text-cyan-300">
+                    {message.mine ? "YOU SHARED A CARD" : "STRANGER SHARED A CARD"}
+                  </p>
+
+                  <p className="mt-3 text-base leading-relaxed text-slate-100">
+                    {message.text}
+                  </p>
+
+                  <p className="mt-3 text-xs text-slate-400">
+                    Answer if you like. Skipping is fine.
+                  </p>
+                </div>
+              ) : (
+                <p
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-base leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] ${message.mine
+                    ? "rounded-br-sm border border-cyan-300/15 bg-[#12333f] text-cyan-50"
+                    : "rounded-bl-sm border border-white/5 bg-[#1b2432] text-slate-100"
+                    }`}
+                >
+                  <span className="sr-only">
+                    {message.mine ? "You: " : "Stranger: "}
+                  </span>
+                  {message.text}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -195,6 +225,15 @@ export default function ChatPanel({
             {sendError}
           </p>
         )}
+
+        <button
+          type="button"
+          onClick={shareCard}
+          disabled={!connected}
+          className="mb-3 min-h-11 w-full rounded-xl border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-sm text-cyan-200 hover:bg-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Share a conversation card
+        </button>
 
         <form onSubmit={submit} className="flex items-center gap-2">
           <label htmlFor="chat-message" className="sr-only">

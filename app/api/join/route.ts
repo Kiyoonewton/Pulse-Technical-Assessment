@@ -9,6 +9,7 @@ import {
   enforceRateLimit,
   joinRateLimitSubject,
 } from "@/lib/rate-limit";
+import { DEFAULT_INTENTION, isIntention } from "@/lib/intentions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,7 +43,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "invalid body" }, { status: 400 });
   }
 
-  const { id, lat, lng } = body as Record<string, unknown>;
+  const {
+    id,
+    lat,
+    lng,
+    intention: requestedIntention,
+  } = body as Record<string, unknown>;
+
+  const intention =
+    requestedIntention === undefined ? DEFAULT_INTENTION : requestedIntention;
+
+  if (!isIntention(intention)) {
+    return Response.json({ error: "invalid intention" }, { status: 400 });
+  }
 
   if (typeof id !== "string" || id.length < 8 || id.length > 64) {
     return Response.json({ error: "invalid id" }, { status: 400 });
@@ -74,6 +87,7 @@ export async function POST(request: NextRequest) {
         tokenHash,
         lat: offset.lat,
         lng: offset.lng,
+        intention,
         busy: false,
         lastSeen: new Date(),
       },

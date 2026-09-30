@@ -11,6 +11,8 @@ import { PeerSession, type DescType, type PeerControl } from "@/lib/webrtc";
 import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
 import ParticipantPreview from "./components/ParticipantPreview";
+import { INTENTIONS, type Intention } from "@/lib/intentions";
+import { ICEBREAKERS, type IcebreakerId } from "@/lib/icebreakers";
 
 type Conn =
   | { kind: "idle" }
@@ -96,6 +98,20 @@ export default function Home() {
   function addMessage(mine: boolean, text: string) {
     setMessages((prev) => [...prev, { id: msgId.current++, mine, text }]);
   }
+  function addIcebreaker(mine: boolean, cardId: IcebreakerId) {
+    const card = ICEBREAKERS.find((item) => item.id === cardId);
+    if (!card) return;
+
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: msgId.current++,
+        mine,
+        text: card.text,
+        kind: "icebreaker",
+      },
+    ]);
+  }
 
   function teardown(message?: string) {
     const current = connRef.current;
@@ -175,6 +191,11 @@ export default function Home() {
           isCurrentConnection(connectionId)
         ) {
           teardown("Connection failed (network).");
+        }
+      },
+      onIcebreaker: (cardId) => {
+        if (isCurrentConnection(connectionId)) {
+          addIcebreaker(false, cardId);
         }
       },
       onChannelOpen: () => {
@@ -534,9 +555,13 @@ export default function Home() {
     };
   }, [sessionId, phase]);
 
-  async function handleReady(lat: number, lng: number) {
+  async function handleReady(
+    lat: number,
+    lng: number,
+    intention: Intention,
+  ) {
     setMyLocation({ lat, lng });
-    await join(sessionId, lat, lng);
+    await join(sessionId, lat, lng, intention);
     setPhase("live");
   }
 
@@ -553,6 +578,15 @@ export default function Home() {
   }
 
   const inChat = conn.kind === "connecting" || conn.kind === "connected";
+
+  const incomingPeer =
+    conn.kind === "incoming"
+      ? peers.find((peer) => peer.id === conn.peerId)
+      : undefined;
+
+  const incomingIntention = INTENTIONS.find(
+    (option) => option.id === incomingPeer?.intention,
+  );
 
   return (
     <main className="fixed inset-0 overflow-hidden">
@@ -623,7 +657,11 @@ export default function Home() {
       {conn.kind === "incoming" && (
         <ConnectionPrompt
           title="A stranger wants to connect"
-          subtitle="Start with a text conversation. Camera and microphone stay off."
+          subtitle={
+            incomingIntention
+              ? `Open to: ${incomingIntention.label}. Start with text; camera and microphone stay off.`
+              : "Start with a text conversation. Camera and microphone stay off."
+          }
           acceptLabel="Accept"
           declineLabel="Decline"
           onAccept={acceptIncoming}
@@ -649,6 +687,18 @@ export default function Home() {
           }}
           onStartVideo={startVideoRequest}
           onEnd={endConnection}
+          onShareIcebreaker={(cardId) => {
+            if (
+              connRef.current.kind !== "connected" ||
+              !peerRef.current?.sendIcebreaker(cardId)
+            ) {
+              showNotice("Couldn't share that card. Please try again.");
+              return false;
+            }
+
+            addIcebreaker(true, cardId);
+            return true;
+          }}
         />
       )}
 

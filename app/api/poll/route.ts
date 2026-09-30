@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
       id: true,
       lat: true,
       lng: true,
+      intention: true,
       connectionMember: {
         select: { connectionId: true },
       },
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
       lat: p.lat,
       lng: p.lng,
       busy: p.connectionMember != null,
+      intention: p.intention,
     })),
     signals: inbox.map((s) => ({
       id: s.id,

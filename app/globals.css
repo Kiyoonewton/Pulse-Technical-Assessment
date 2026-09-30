@@ -35,19 +35,6 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-/* Live user dots on the map */
-.pulse-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  cursor: pointer;
-  padding: 0;
-  box-shadow: 0 0 0 rgba(255, 255, 255, 0.5);
-  animation: pulse-ring 2s ease-out infinite;
-  transition: transform 0.1s ease;
-}
-
 :where(button, a, input, textarea, summary):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
@@ -56,10 +43,6 @@ button:not(:disabled) {
 ::selection {
   background: #22d3ee;
   color: #0a0d14;
-}
-
-.pulse-dot:hover {
-  transform: scale(1.3);
 }
 
 /* The user's own "you are here" pin — small, sized like the dots. */
@@ -84,18 +67,6 @@ button:not(:disabled) {
   padding: 0 5px;
   border-radius: 9999px;
   white-space: nowrap;
-}
-
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
-  }
 }
 
 /* Welcome screen's decorative globe — not live participant data. */
