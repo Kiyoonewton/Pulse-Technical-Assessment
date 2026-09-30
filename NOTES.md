@@ -29,6 +29,12 @@
   presence; the client closes its old connection and returns to entry.
   Verified re-entry restores visibility and allows connecting again.
   Chose explicit re-entry rather than silently resuming an old chat.
+- Verified declining a request allows another attempt. Cancelling an
+  outgoing request dismisses the recipient's prompt, and a fresh
+  connection succeeds without reloading.
+- Verified closing a participant's window during chat ends the other
+  participant's chat, returns them to the map, and removes the departed
+  participant's dot.
 
 ## Phase 2 — Make it good
 
