@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #0a0d14;
+  --foreground: #f8fafc;
+  --surface: #111622;
+  --surface-hover: #182030;
+  --accent: #22d3ee;
+  --muted: #94a3b8;
+  --border: rgba(56, 189, 248, 0.18);
 }
 
 @theme inline {
@@ -22,7 +28,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 /* Live user dots on the map */
@@ -36,6 +46,16 @@ body {
   box-shadow: 0 0 0 rgba(255, 255, 255, 0.5);
   animation: pulse-ring 2s ease-out infinite;
   transition: transform 0.1s ease;
+}
+
+:where(button, a, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+::selection {
+  background: #22d3ee;
+  color: #0a0d14;
 }
 
 .pulse-dot:hover {
@@ -75,5 +95,125 @@ body {
   }
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+/* Welcome screen's decorative globe — not live participant data. */
+.entry-globe-glow {
+  background: radial-gradient(circle, #22d3ee12 0%, transparent 70%);
+  box-shadow: 0 0 120px #22d3ee0f;
+}
+
+.entry-orbit {
+  animation: entry-orbit 24s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes entry-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-orbit,
+  .pulse-dot {
+    animation: none;
+  }
+}
+
+.pulse-dot {
+  --beacon-color: #22d3ee;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Animate inside the marker; Mapbox controls its outer transform. */
+.pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: 15px;
+  border: 2px solid #e0faff;
+  border-radius: 50%;
+  background: var(--beacon-color);
+  box-shadow: 0 0 14px var(--beacon-color);
+  transition: scale 150ms ease;
+}
+
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid var(--beacon-color);
+  border-radius: 50%;
+  opacity: 0;
+  animation: beacon-pulse 3.2s ease-out infinite;
+}
+
+.pulse-dot[data-busy="true"] {
+  --beacon-color: #f59e0b;
+}
+
+.pulse-dot[data-busy="true"]::before {
+  border-radius: 3px;
+}
+
+.pulse-dot[data-busy="true"]::after {
+  animation: none;
+}
+
+.pulse-dot:hover::before,
+.pulse-dot:focus-visible::before {
+  scale: 1.25;
+}
+
+@keyframes beacon-pulse {
+  from {
+    transform: scale(0.7);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot::after {
+    animation: none;
+  }
+
+  .pulse-dot::before {
+    transition: none;
+  }
+}
+
+.pulse-dialog::backdrop {
+  background: rgb(3 7 14 / 78%);
+}
+
+.pulse-dialog[open] {
+  animation: prompt-enter 180ms ease-out;
+}
+
+@keyframes prompt-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dialog[open] {
+    animation: none;
   }
 }

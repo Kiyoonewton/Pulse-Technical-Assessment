@@ -50,7 +50,44 @@
 
 ## Phase 2 — Make it good
 
-- Not started.
+- Chose the Phosphor Radar direction after exploring visual concepts
+  with Lovable: dark surfaces, cyan accents, restrained glow, and
+  a globe as the visual focus.
+
+- Redesigned the welcome screen with clearer typography, a prominent
+  entry button, and decorative globe artwork.
+
+- Clarified location use, optional video, and privacy wording:
+  chat/video are not stored by Pulse, while coordination data is temporary.
+
+- Added separate location and join-failure messages so users can
+  understand what failed and retry.
+
+- Live-map, request, chat/video, and responsive polish remain in progress.
+
+- Verified entry with location allowed, helpful feedback when denied,
+  and no horizontal overflow at 390px. Lint and production build passed.
+
+- Added a participant preview before sending a connection request,
+  making connection attempts deliberate.
+
+- Restyled the live globe with a dark atmosphere, fewer map labels,
+  cyan available markers, and amber square busy markers.
+
+- Added participant counts and an availability legend. Preview actions
+  respond to participants becoming busy or going offline.
+
+- Verified the preview-to-chat flow with two browser windows.
+  Lint and production build passed.
+
+- Restyled connection and video invitations with native modal dialogs,
+  keyboard focus containment, and Escape-to-decline behavior.
+
+- Redesigned chat with readable message bubbles, long-text wrapping,
+  and scrolling that preserves the reader's position.
+
+- Kept chat visible during video calls and added microphone/camera
+  toggles, local preview, and separate video/chat exit actions.
 
 ## Phase 3 — Make it secure
 
