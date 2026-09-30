@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, beforeEach, describe, test } from "node:test";
 import { cleanupConnections } from "@/lib/connection-cleanup";
 import { STALE_MS } from "@/lib/presence";
-import { connect, joinSession, pollOk, send } from "../support/api";
+import { connect, joinSession, leave, pollOk, send } from "../support/api";
 import { prisma, resetDatabase, secondsAgo } from "../support/db";
 
 beforeEach(resetDatabase);
@@ -81,6 +81,26 @@ describe("presence and cleanup", () => {
         (s) => s.type === "end" && s.connectionId === connectionId,
       ),
     );
+  });
+
+  test("leaving mid-connection releases it and notifies the partner", async () => {
+    const a = await joinSession();
+    const b = await joinSession();
+    const connectionId = await connect(a, b);
+    await pollOk(b); // Drain the request signal.
+
+    assert.equal((await leave(a.id, a.token)).status, 200);
+
+    assert.equal(await prisma.presence.count({ where: { id: a.id } }), 0);
+    assert.equal(await prisma.connection.count(), 0);
+    assert.equal(await prisma.connectionMember.count(), 0);
+
+    const body = await pollOk(b);
+    assert.deepEqual(
+      body.signals.map((s) => [s.type, s.fromId, s.connectionId]),
+      [["end", a.id, connectionId]],
+    );
+    assert.deepEqual(body.peers, [], "the leaver is no longer on the map");
   });
 
   test("a partner going stale releases the connection and notifies the survivor", async () => {
