@@ -12,23 +12,61 @@ datasource db {
 }
 
 model Presence {
-  id       String   @id // client-generated session uuid
-  lat      Float // ALREADY privacy-offset coords (raw is never stored)
-  lng      Float
-  busy     Boolean  @default(false) // true while in an active connection
-  lastSeen DateTime
+  id               String            @id // client-generated session uuid
+  lat              Float // ALREADY privacy-offset coords (raw is never stored)
+  lng              Float
+  busy             Boolean           @default(false) // true while in an active connection
+  lastSeen         DateTime
+  tokenHash        String?
+  connectionMember ConnectionMember?
 
   @@index([lastSeen])
 }
 
 model Signal {
   // Mailbox for connection requests + WebRTC signaling only.
-  id        String   @id @default(uuid())
-  toId      String // recipient session id
-  fromId    String // sender session id
-  type      String // request | accept | decline | offer | answer | ice | end
-  payload   String? // JSON string (SDP / ICE candidate)
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  toId         String // recipient session id
+  fromId       String // sender session id
+  type         String // request | accept | decline | offer | answer | ice | end
+  payload      String? // JSON string (SDP / ICE candidate)
+  createdAt    DateTime @default(now())
+  connectionId String?
 
   @@index([toId])
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACTIVE
+}
+
+model Connection {
+  id          String             @id @default(uuid())
+  requesterId String
+  recipientId String
+  status      ConnectionStatus   @default(PENDING)
+  createdAt   DateTime           @default(now())
+  expiresAt   DateTime
+  members     ConnectionMember[]
+
+  @@index([expiresAt])
+}
+
+model ConnectionMember {
+  presenceId   String @id
+  connectionId String
+
+  presence   Presence   @relation(fields: [presenceId], references: [id], onDelete: Cascade)
+  connection Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+}
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
 }

@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { STALE_MS, SIGNAL_TTL_MS } from "@/lib/presence";
 import type { PollResponse } from "@/lib/types";
+import { readSessionToken, requireSession } from "@/lib/session";
+import { cleanupConnections } from "@/lib/connection-cleanup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +19,11 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "missing id" }, { status: 400 });
   }
 
+  const denied = await requireSession(id, readSessionToken(request));
+  if (denied) return denied;
+
   const now = Date.now();
   const staleCutoff = new Date(now - STALE_MS);
-  const signalCutoff = new Date(now - SIGNAL_TTL_MS);
 
   // 1) Heartbeat — refresh lastSeen for the caller.
   const heartbeat = await prisma.presence.updateMany({
@@ -31,13 +35,25 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "presence_expired" }, { status: 410 });
   }
 
-  // 2) Reap stale presence rows and orphaned signals (independent deletes —
-  // no atomicity needed, and avoids transactions over a PgBouncer pooler).
-  await prisma.presence.deleteMany({
-    where: { lastSeen: { lt: staleCutoff } },
-  });
-  await prisma.signal.deleteMany({
-    where: { createdAt: { lt: signalCutoff } },
+  // 2) Release connections before removing expired participants.
+  await cleanupConnections(id);
+
+  // Independent expiry queries do not need an interactive transaction.
+  await Promise.all([
+    prisma.presence.deleteMany({
+      where: { lastSeen: { lt: staleCutoff } },
+    }),
+    prisma.signal.deleteMany({
+      where: {
+        createdAt: {
+          lt: new Date(now - SIGNAL_TTL_MS),
+        },
+      },
+    }),
+  ]);
+
+  await prisma.connection.deleteMany({
+    where: { members: { none: {} } },
   });
 
   // 3) Online peers, excluding self.
@@ -46,7 +62,14 @@ export async function GET(request: NextRequest) {
       id: { not: id },
       lastSeen: { gte: staleCutoff },
     },
-    select: { id: true, lat: true, lng: true, busy: true },
+    select: {
+      id: true,
+      lat: true,
+      lng: true,
+      connectionMember: {
+        select: { connectionId: true },
+      },
+    },
   });
 
   // 4) Drain this user's mailbox: read, then delete exactly what we read so a
@@ -54,6 +77,15 @@ export async function GET(request: NextRequest) {
   const inbox = await prisma.signal.findMany({
     where: { toId: id },
     orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      fromId: true,
+      toId: true,
+      type: true,
+      payload: true,
+      createdAt: true,
+      connectionId: true,
+    },
   });
   if (inbox.length > 0) {
     await prisma.signal.deleteMany({
@@ -66,7 +98,7 @@ export async function GET(request: NextRequest) {
       id: p.id,
       lat: p.lat,
       lng: p.lng,
-      busy: p.busy,
+      busy: p.connectionMember != null,
     })),
     signals: inbox.map((s) => ({
       id: s.id,
@@ -75,6 +107,7 @@ export async function GET(request: NextRequest) {
       type: s.type as PollResponse["signals"][number]["type"],
       payload: s.payload,
       createdAt: s.createdAt.toISOString(),
+      connectionId: s.connectionId,
     })),
   };
 

@@ -13,10 +13,11 @@ import { type PeerDot, type SignalMsg } from "@/lib/types";
 
 type Conn =
   | { kind: "idle" }
-  | { kind: "requesting"; peerId: string }
-  | { kind: "incoming"; peerId: string }
-  | { kind: "connecting"; peerId: string }
-  | { kind: "connected"; peerId: string };
+  | {
+    kind: "requesting" | "incoming" | "connecting" | "connected";
+    peerId: string;
+    connectionId: string;
+  };
 
 type VideoState = "none" | "requesting" | "incoming" | "active";
 
@@ -52,6 +53,12 @@ export default function Home() {
   const msgId = useRef(0);
   const requestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const retiredConnections = useRef(new Set<string>());
+  const requestSendRef = useRef<{
+    connectionId: string;
+    promise: Promise<void>;
+  } | null>(null);
+
   function showNotice(text: string) {
     setNotice(text);
     window.setTimeout(() => setNotice(null), 3500);
@@ -62,34 +69,91 @@ export default function Home() {
   }
 
   function teardown(message?: string) {
-    if (requestTimer.current) clearTimeout(requestTimer.current);
-    peerRef.current?.close();
+    const current = connRef.current;
+
+    if (current.kind !== "idle") {
+      retiredConnections.current.add(current.connectionId);
+    }
+
+    if (requestTimer.current) {
+      clearTimeout(requestTimer.current);
+      requestTimer.current = null;
+    }
+
+    // Invalidate old callbacks before closing their WebRTC session.
+    setConn({ kind: "idle" });
+
+    const oldPeer = peerRef.current;
     peerRef.current = null;
+    oldPeer?.close();
+
     setLocalStream(null);
     setRemoteStream(null);
     setVideo("none");
     setMessages([]);
-    setConn({ kind: "idle" });
+
     if (message) showNotice(message);
   }
 
-  function startPeer(peerId: string, initiator: boolean) {
+  function isCurrentConnection(connectionId: string): boolean {
+    const current = connRef.current;
+    return (
+      current.kind !== "idle" &&
+      current.connectionId === connectionId
+    );
+  }
+
+  function startPeer(
+    peerId: string,
+    initiator: boolean,
+    connectionId: string,
+  ) {
     const ps = new PeerSession(initiator, {
       onSignal: (type: DescType, payload: string) => {
-        void sendSignal(sessionId, peerId, type, payload);
+        if (!isCurrentConnection(connectionId)) return;
+
+        void sendSignal(
+          sessionId,
+          peerId,
+          type,
+          connectionId,
+          payload,
+        ).catch(() => {
+          if (isCurrentConnection(connectionId)) {
+            showNotice("Could not send connection signal.");
+          }
+        });
       },
-      onChat: (text) => addMessage(false, text),
-      onControl: (ctrl) => handleControl(ctrl),
-      onRemoteStream: (stream) => setRemoteStream(stream),
+      onChat: (text) => {
+        if (isCurrentConnection(connectionId)) {
+          addMessage(false, text);
+        }
+      },
+      onControl: (ctrl) => {
+        if (isCurrentConnection(connectionId)) {
+          handleControl(ctrl);
+        }
+      },
+      onRemoteStream: (stream) => {
+        if (isCurrentConnection(connectionId)) {
+          setRemoteStream(stream);
+        }
+      },
       onConnectionState: (state) => {
-        if (state === "failed") {
+        if (
+          state === "failed" &&
+          isCurrentConnection(connectionId)
+        ) {
           teardown("Connection failed (network).");
         }
       },
       onChannelOpen: () => {
-        setConn({ kind: "connected", peerId });
+        if (isCurrentConnection(connectionId)) {
+          setConn({ kind: "connected", peerId, connectionId });
+        }
       },
     });
+
     peerRef.current = ps;
   }
 
@@ -130,48 +194,119 @@ export default function Home() {
 
   function requestConnection(peerId: string) {
     if (connRef.current.kind !== "idle") return;
-    setConn({ kind: "requesting", peerId });
-    void sendSignal(sessionId, peerId, "request");
+
+    const connectionId = crypto.randomUUID();
+    setConn({ kind: "requesting", peerId, connectionId });
+
+    const promise = sendSignal(
+      sessionId,
+      peerId,
+      "request",
+      connectionId,
+    );
+
+    requestSendRef.current = { connectionId, promise };
+
+    void promise.catch(() => {
+      if (isCurrentConnection(connectionId)) {
+        teardown("Could not send connection request.");
+      }
+    });
+
     requestTimer.current = setTimeout(() => {
+      const current = connRef.current;
+
       if (
-        connRef.current.kind === "requesting" &&
-        connRef.current.peerId === peerId
+        current.kind === "requesting" &&
+        current.connectionId === connectionId
       ) {
-        void sendSignal(sessionId, peerId, "end");
-        teardown("No answer.");
+        cancelRequest("No answer.");
       }
     }, REQUEST_TIMEOUT_MS);
   }
 
-  function cancelRequest() {
-    if (connRef.current.kind === "requesting") {
-      void sendSignal(sessionId, connRef.current.peerId, "end");
-    }
-    teardown();
+  function cancelRequest(message?: string) {
+    const current = connRef.current;
+    if (current.kind !== "requesting") return;
+
+    const pending = requestSendRef.current;
+    teardown(message);
+
+    // Ensure cancellation cannot reach the server before its request.
+    void (async () => {
+      try {
+        if (pending?.connectionId === current.connectionId) {
+          await pending.promise;
+        }
+
+        await sendSignal(
+          sessionId,
+          current.peerId,
+          "end",
+          current.connectionId,
+        );
+      } catch {
+        // A failed or already-expired request needs no further action.
+        // Pending server reservations also expire automatically.
+      }
+    })();
   }
 
-  function acceptIncoming() {
-    if (connRef.current.kind !== "incoming") return;
-    const peerId = connRef.current.peerId;
-    startPeer(peerId, false);
-    void sendSignal(sessionId, peerId, "accept");
-    setConn({ kind: "connecting", peerId });
+  async function acceptIncoming() {
+    const current = connRef.current;
+    if (current.kind !== "incoming") return;
+
+    const { peerId, connectionId } = current;
+
+    setConn({ kind: "connecting", peerId, connectionId });
+    startPeer(peerId, false, connectionId);
+
+    try {
+      await sendSignal(sessionId, peerId, "accept", connectionId);
+    } catch {
+      if (isCurrentConnection(connectionId)) {
+        teardown("Could not accept connection.");
+      }
+    }
   }
 
   function declineIncoming() {
-    if (connRef.current.kind !== "incoming") return;
-    void sendSignal(sessionId, connRef.current.peerId, "decline");
-    setConn({ kind: "idle" });
+    const current = connRef.current;
+    if (current.kind !== "incoming") return;
+
+    teardown();
+
+    void sendSignal(
+      sessionId,
+      current.peerId,
+      "decline",
+      current.connectionId,
+    ).catch(() => {
+      showNotice("Could not deliver decline; request will expire.");
+    });
   }
 
   function endConnection() {
-    const c = connRef.current;
-    if (c.kind === "connecting" || c.kind === "connected") {
-      void sendSignal(sessionId, c.peerId, "end");
-    }
-    teardown();
-  }
+    const current = connRef.current;
 
+    if (
+      current.kind !== "connecting" &&
+      current.kind !== "connected"
+    ) {
+      return;
+    }
+
+    teardown();
+
+    void sendSignal(
+      sessionId,
+      current.peerId,
+      "end",
+      current.connectionId,
+    ).catch(() => {
+      showNotice("Disconnected locally; could not notify the stranger.");
+    });
+  }
   function startVideoRequest() {
     if (videoRef.current !== "none" || !peerRef.current) return;
     setVideo("requesting");
@@ -208,60 +343,104 @@ export default function Home() {
     setVideo("none");
   }
 
-  function processSignal(sig: SignalMsg) {
+  async function processSignal(sig: SignalMsg) {
+    const connectionId = sig.connectionId;
+
+    // Ignore legacy signals and connections already closed locally.
+    if (
+      !connectionId ||
+      retiredConnections.current.has(connectionId)
+    ) {
+      return;
+    }
+
+    const current = connRef.current;
+
+    if (sig.type === "request") {
+      if (current.kind === "idle") {
+        setConn({
+          kind: "incoming",
+          peerId: sig.fromId,
+          connectionId,
+        });
+      } else if (current.connectionId !== connectionId) {
+        retiredConnections.current.add(connectionId);
+
+        await sendSignal(
+          sessionId,
+          sig.fromId,
+          "decline",
+          connectionId,
+        ).catch(() => {
+          // The server may already have expired this request.
+        });
+      }
+
+      return;
+    }
+
+    // Match BOTH the participant and the particular connection attempt.
+    if (
+      current.kind === "idle" ||
+      current.peerId !== sig.fromId ||
+      current.connectionId !== connectionId
+    ) {
+      return;
+    }
+
     switch (sig.type) {
-      case "request": {
-        if (connRef.current.kind === "idle") {
-          setConn({ kind: "incoming", peerId: sig.fromId });
-        } else {
-          void sendSignal(sessionId, sig.fromId, "decline");
+      case "accept":
+        if (current.kind === "requesting") {
+          if (requestTimer.current) {
+            clearTimeout(requestTimer.current);
+            requestTimer.current = null;
+          }
+
+          setConn({
+            kind: "connecting",
+            peerId: sig.fromId,
+            connectionId,
+          });
+
+          startPeer(sig.fromId, true, connectionId);
         }
         break;
-      }
-      case "accept": {
-        const c = connRef.current;
-        if (c.kind === "requesting" && c.peerId === sig.fromId) {
-          if (requestTimer.current) clearTimeout(requestTimer.current);
-          startPeer(sig.fromId, true);
-          setConn({ kind: "connecting", peerId: sig.fromId });
-        }
-        break;
-      }
-      case "decline": {
-        const c = connRef.current;
-        if (c.kind === "requesting" && c.peerId === sig.fromId) {
-          if (requestTimer.current) clearTimeout(requestTimer.current);
+
+      case "decline":
+        if (current.kind === "requesting") {
           teardown("Request declined.");
         }
         break;
-      }
+
       case "offer":
       case "answer":
-      case "ice": {
-        const c = connRef.current;
-        const peerId =
-          c.kind === "connecting" || c.kind === "connected" ? c.peerId : null;
-        if (peerRef.current && peerId === sig.fromId) {
-          void peerRef.current.handleSignal(
-            sig.type as DescType,
-            sig.payload ?? "",
-          );
-        }
-        break;
-      }
-      case "end": {
-        const c = connRef.current;
+      case "ice":
         if (
-          (c.kind === "incoming" ||
-            c.kind === "connecting" ||
-            c.kind === "connected") &&
-          c.peerId === sig.fromId
+          (current.kind === "connecting" ||
+            current.kind === "connected") &&
+          peerRef.current
         ) {
-          if (c.kind === "incoming") setConn({ kind: "idle" });
-          else teardown("Stranger disconnected.");
+          try {
+            await peerRef.current.handleSignal(
+              sig.type,
+              sig.payload ?? "",
+            );
+          } catch {
+            if (isCurrentConnection(connectionId)) {
+              showNotice("Could not process connection signal.");
+            }
+          }
         }
         break;
-      }
+
+      case "end":
+        teardown(
+          current.kind === "requesting" ||
+            current.kind === "incoming"
+            ? "Connection request ended."
+            : "Stranger disconnected.",
+        );
+        break;
     }
   }
 
@@ -283,7 +462,10 @@ export default function Home() {
         const data = await poll(sessionId);
         if (!active) return;
         setPeers(data.peers);
-        for (const s of data.signals) processSignalRef.current(s);
+        for (const s of data.signals) {
+          if (!active) return;
+          await processSignalRef.current(s);
+        }
       } catch (error) {
         if (!active) return;
 
@@ -308,10 +490,8 @@ export default function Home() {
     if (!sessionId || phase !== "live") return;
     const onLeave = () => leave(sessionId);
     window.addEventListener("pagehide", onLeave);
-    window.addEventListener("beforeunload", onLeave);
     return () => {
       window.removeEventListener("pagehide", onLeave);
-      window.removeEventListener("beforeunload", onLeave);
     };
   }, [sessionId, phase]);
 
@@ -346,8 +526,7 @@ export default function Home() {
         <div className="absolute left-1/2 top-20 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full bg-zinc-800/90 px-4 py-2 text-sm text-zinc-100 shadow-lg backdrop-blur">
           <span>Requesting connection…</span>
           <button
-            onClick={cancelRequest}
-            className="rounded-full bg-zinc-700 px-3 py-1 text-xs hover:bg-zinc-600"
+            onClick={() => cancelRequest()} className="rounded-full bg-zinc-700 px-3 py-1 text-xs hover:bg-zinc-600"
           >
             Cancel
           </button>

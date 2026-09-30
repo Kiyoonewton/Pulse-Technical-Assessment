@@ -1,31 +1,35 @@
 import type { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { cleanupConnections } from "@/lib/connection-cleanup";
+import { hashToken, isValidToken, requireSession } from "@/lib/session";
+import { readJsonObject } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// POST /api/leave — body { id }. Removes the presence row and any pending
-// signals to/from this user. Called via navigator.sendBeacon on tab close, so
-// the body may arrive as text — parse defensively.
 export async function POST(request: NextRequest) {
-  let id: string | undefined;
-  try {
-    const text = await request.text();
-    id = text ? (JSON.parse(text)?.id as string | undefined) : undefined;
-  } catch {
-    id = undefined;
+  const parsed = await readJsonObject(request, 4 * 1024);
+  if (!parsed.ok) return parsed.response;
+
+  const body = parsed.body;
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({ error: "invalid body" }, { status: 400 });
   }
+
+  const { id, token } = body as Record<string, unknown>;
 
   if (typeof id !== "string" || !id) {
     return Response.json({ error: "invalid id" }, { status: 400 });
   }
 
-  // Independent cleanup deletes — no atomicity needed (and interactive
-  // transactions are unreliable over a PgBouncer pooler).
-  await prisma.signal.deleteMany({
-    where: { OR: [{ toId: id }, { fromId: id }] },
-  });
-  await prisma.presence.deleteMany({ where: { id } });
+  if (!isValidToken(token)) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const denied = await requireSession(id, token);
+  if (denied) return denied;
+
+  await cleanupConnections(id, hashToken(token));
 
   return Response.json({ ok: true });
 }
