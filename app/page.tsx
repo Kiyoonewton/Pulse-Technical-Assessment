@@ -12,6 +12,7 @@ import { POLL_INTERVAL_MS } from "@/lib/presence";
 import { type PeerDot, type SignalMsg } from "@/lib/types";
 import ParticipantPreview from "./components/ParticipantPreview";
 import { INTENTIONS, type Intention } from "@/lib/intentions";
+import { ICEBREAKERS, type IcebreakerId } from "@/lib/icebreakers";
 
 type Conn =
   | { kind: "idle" }
@@ -97,6 +98,20 @@ export default function Home() {
   function addMessage(mine: boolean, text: string) {
     setMessages((prev) => [...prev, { id: msgId.current++, mine, text }]);
   }
+  function addIcebreaker(mine: boolean, cardId: IcebreakerId) {
+    const card = ICEBREAKERS.find((item) => item.id === cardId);
+    if (!card) return;
+
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: msgId.current++,
+        mine,
+        text: card.text,
+        kind: "icebreaker",
+      },
+    ]);
+  }
 
   function teardown(message?: string) {
     const current = connRef.current;
@@ -176,6 +191,11 @@ export default function Home() {
           isCurrentConnection(connectionId)
         ) {
           teardown("Connection failed (network).");
+        }
+      },
+      onIcebreaker: (cardId) => {
+        if (isCurrentConnection(connectionId)) {
+          addIcebreaker(false, cardId);
         }
       },
       onChannelOpen: () => {
@@ -667,6 +687,18 @@ export default function Home() {
           }}
           onStartVideo={startVideoRequest}
           onEnd={endConnection}
+          onShareIcebreaker={(cardId) => {
+            if (
+              connRef.current.kind !== "connected" ||
+              !peerRef.current?.sendIcebreaker(cardId)
+            ) {
+              showNotice("Couldn't share that card. Please try again.");
+              return false;
+            }
+
+            addIcebreaker(true, cardId);
+            return true;
+          }}
         />
       )}
 
