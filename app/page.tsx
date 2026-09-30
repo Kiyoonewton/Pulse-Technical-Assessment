@@ -589,6 +589,7 @@ export default function Home() {
           messages={messages}
           connected={conn.kind === "connected"}
           videoBusy={video !== "none"}
+          videoActive={video === "active"}
           onSend={(text) => {
             peerRef.current?.sendChat(text);
             addMessage(true, text);
